@@ -4,6 +4,7 @@ import React from 'react';
 import {Alert, Image, ToastAndroid, TouchableOpacity, View} from 'react-native';
 import {RNCamera} from 'react-native-camera';
 import CameraRoll from '@react-native-community/cameraroll';
+import {check, PERMISSIONS, RESULTS, request} from 'react-native-permissions';
 
 class App extends React.Component {
     /*
@@ -13,11 +14,30 @@ class App extends React.Component {
     * just write the varibles(or refs) with theirs elements (cameraRef: RNCamera) on top of the class
     * And that will make your IDE to show RNCamera's methods on auto-complete.
     *
-    * Sorry for that bad english ><
-    * */
-
+    * Sorry for that bad english >.<
+    *
+    */
     cameraRef: RNCamera;
     viewRef: View;
+
+    requestAndroidPermission = async () => {
+        try {
+            const isGranted=  check(PERMISSIONS.ANDROID.WRITE_EXTERNAL_STORAGE);
+            if (!(isGranted === 'granted')) {
+                request(PERMISSIONS.ANDROID.WRITE_EXTERNAL_STORAGE)
+                    .then(value =>{
+                    if (value === RESULTS.GRANTED) {
+                      ToastAndroid.show('Permission Granted!',ToastAndroid.SHORT)
+                    } else {
+                        ToastAndroid.show('Permission Not Granted! \n ' + value,ToastAndroid.SHORT)
+                    }
+                } )
+            }
+
+        } catch (e) {
+            Alert.alert('Error!','Unable to request permission.\n' + e.message)
+        }
+    }
 
     captureImage = async () => {
         const options = {
@@ -26,13 +46,13 @@ class App extends React.Component {
         }
 
         const data = await this.cameraRef.takePictureAsync(options);
-
+        await this.requestAndroidPermission();
         await CameraRoll.save(data.uri,'photo')
             .then(() => {
-                Alert.alert('Image Saved!',"Success")
+                //Alert.alert('Image Saved!',"Success")
             })
             .catch((reason: Error)  => {
-                Alert.alert('Error!','Image is not saved.\n' + reason.message)
+               // Alert.alert('Error!','Image is not saved.\n' + reason.message)
             })
 
 
