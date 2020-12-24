@@ -1,10 +1,10 @@
 /* eslint-disable react-native/no-inline-styles */
 /* eslint-disable prettier/prettier */
 import React from 'react';
-import {Alert, Image, ToastAndroid, TouchableOpacity, View} from 'react-native';
+import {Alert, Image, TouchableOpacity, View} from 'react-native';
 import {RNCamera} from 'react-native-camera';
 import CameraRoll from '@react-native-community/cameraroll';
-import {check, PERMISSIONS, RESULTS, request} from 'react-native-permissions';
+import {check, PERMISSIONS, request, RESULTS} from 'react-native-permissions';
 
 class App extends React.Component {
     /*
@@ -20,40 +20,105 @@ class App extends React.Component {
     cameraRef: RNCamera;
     viewRef: View;
 
-    requestAndroidPermission = async () => {
-        try {
-            const isGranted=  check(PERMISSIONS.ANDROID.WRITE_EXTERNAL_STORAGE);
-            if (!(isGranted === 'granted')) {
-                request(PERMISSIONS.ANDROID.WRITE_EXTERNAL_STORAGE)
-                    .then(value =>{
-                    if (value === RESULTS.GRANTED) {
-                      ToastAndroid.show('Permission Granted!',ToastAndroid.SHORT)
-                    } else {
-                        ToastAndroid.show('Permission Not Granted! \n ' + value,ToastAndroid.SHORT)
-                    }
-                } )
+    state = {
+        permissionStatus: {
+            cameraStatus: null,
+            microphoneStatus: null,
+            storagePermission: null,
+        },
+    };
+
+    componentDidMount() {
+        //Request permissions
+        console.log('componentDidMount');
+        this.requestAndroidPermission().then(r => {
+            this.setState({
+                permissionStatus: {
+                    cameraStatus: r.cameraStatus,
+                    microphoneStatus: r.microphoneStatus,
+                    storagePermission: r.storagePermission,
+                },
+            });
+            console.log('setState');
+            console.log(this.state.permissionStatus);
+
+            if (!(r.cameraStatus === RESULTS.GRANTED)) {
+                Alert.alert(
+                    'Permission isnt granted!',
+                    'Grant Camera access permission for app',
+                    [{
+                        text: 'Request Permission',
+                        onPress: async () => {
+                            await request(PERMISSIONS.ANDROID.CAMERA)
+                            this.componentDidMount();
+                        }
+                    }]);
+                return;
             }
 
-        } catch (e) {
-            Alert.alert('Error!','Unable to request permission.\n' + e.message)
-        }
+            if (!(r.storagePermission === RESULTS.GRANTED)) {
+                Alert.alert(
+                    'Permission isnt granted!',
+                    'Grant Storage access permission for app',
+                    [{
+                        text: 'Request Permission',
+                        onPress: async () => {
+                            await request(PERMISSIONS.ANDROID.WRITE_EXTERNAL_STORAGE)
+                            this.componentDidMount();
+                        }
+                    }]);
+                return;
+            }
+
+            if (!(r.microphoneStatus === RESULTS.GRANTED)) {
+                Alert.alert(
+                    'Permission isnt granted!',
+                    'Grant Microphone access permission for app',
+                    [{
+                        text: 'Request Permission',
+                        onPress: async () => {
+                            await request(PERMISSIONS.ANDROID.RECORD_AUDIO)
+                            this.componentDidMount();
+                        }
+                    }]);
+                return;
+            }
+
+
+        });
+
     }
+
+    requestAndroidPermission = async () => {
+        console.log('requestAndroidPermission');
+        const cam = await check(PERMISSIONS.ANDROID.CAMERA);
+        const mic = await check(PERMISSIONS.ANDROID.RECORD_AUDIO);
+        const storage = await check(PERMISSIONS.ANDROID.WRITE_EXTERNAL_STORAGE);
+        const permissionStatus = {
+            cameraStatus: cam,
+            microphoneStatus: mic,
+            storagePermission: storage,
+        };
+        console.log('BRUH');
+        console.log(permissionStatus);
+
+        return  permissionStatus;
+    };
 
     captureImage = async () => {
         const options = {
             quality: 0.77,
-            base64:true,
-        }
+            base64: true,
+        };
 
         const data = await this.cameraRef.takePictureAsync(options);
-        await this.requestAndroidPermission();
-        await CameraRoll.save(data.uri,'photo')
+        await CameraRoll.save(data.uri, 'photo')
             .then(() => {
                 //Alert.alert('Image Saved!',"Success")
             })
-            .catch((reason: Error)  => {
-               // Alert.alert('Error!','Image is not saved.\n' + reason.message)
-            })
+            .catch((reason: Error) => {
+                // Alert.alert('Error!','Image is not saved.\n' + reason.message)
+            });
 
 
     };
@@ -62,12 +127,13 @@ class App extends React.Component {
         return (
             <View
                 ref={ref => {
-                    this.viewRef= ref;
+                    this.viewRef = ref;
                 }}
                 style={{
                     flex: 1,
                 }}>
                 <RNCamera
+                    notAuthorizedView={<View></View>}
                     style={{
                         flex: 1,
                         justifyContent: 'flex-end',
